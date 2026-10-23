@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --font-noto-sans: 'Noto Sans', system-ui, -apple-system, sans-serif;
+  --font-noto-devanagari: 'Noto Sans Devanagari', 'Noto Sans', sans-serif;
+  --font-noto-urdu: 'Noto Nastaliq Urdu', 'Noto Sans', serif;
+}
+
+[lang="ur"] {
+  font-family: var(--font-noto-urdu);
+  line-height: 2.1;
+}
+
+[lang="hi"] {
+  font-family: var(--font-noto-devanagari);
+}
+
+body {
+  color: #1e293b;
+  background-color: #fcfbf7;
+  min-height: 100vh;
+  font-family: var(--font-noto-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Islamic Geometric Border Motif Accent */
+.islamic-pattern {
+  background-color: #064e3b;
+  background-image: radial-gradient(circle at 50% 50%, rgba(217, 119, 6, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.islamic-motif-top {
+  border-top: 3px solid #d97706;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Touch-friendly target utility */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
