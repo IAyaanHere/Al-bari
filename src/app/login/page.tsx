@@ -7,6 +7,7 @@ import { LogIn, Eye, EyeOff, Lock, User, AlertCircle, Sparkles } from "lucide-re
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n/context";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -34,6 +35,19 @@ export default function LoginPage() {
 
       if (!res.ok) {
         throw new Error(data.error || "Authentication failed.");
+      }
+
+      // Sync session to browser Supabase client
+      if (data.session) {
+        try {
+          const supabase = createClient();
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+        } catch (sessionErr) {
+          console.warn("Failed to set client session:", sessionErr);
+        }
       }
 
       // Check if user must change their temporary password

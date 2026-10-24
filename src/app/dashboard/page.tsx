@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   FileText,
   Building2,
@@ -9,6 +10,9 @@ import {
   AlertCircle,
   FolderArchive,
   RefreshCw,
+  Upload,
+  CheckCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FilterBar } from "@/components/dashboard/FilterBar";
@@ -37,6 +41,17 @@ export default function DashboardPage() {
   const [pagination, setPagination] = React.useState({ page: 1, total: 0, totalPages: 1 });
   const [stats, setStats] = React.useState<any>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [currentUser, setCurrentUser] = React.useState<any>(null);
+
+  // Check authenticated user
+  React.useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user) setCurrentUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
 
   // Debounce search input
   React.useEffect(() => {
@@ -112,6 +127,95 @@ export default function DashboardPage() {
           {t.dashboard.subtitle}
         </p>
       </div>
+
+      {/* Admin Action Center Banner */}
+      {currentUser?.role === "admin" && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 border border-amber-500/30 text-white shadow-md">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 text-[10px] font-extrabold tracking-wider bg-amber-400 text-emerald-950 rounded uppercase shadow-2xs">
+                  Head Administrator
+                </span>
+                <span className="text-xs text-emerald-300 font-medium">
+                  {currentUser.full_name}
+                </span>
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">
+                Organization Administration Center
+              </h2>
+              <p className="text-xs text-emerald-200/90 max-w-xl">
+                Quickly access madrasa creation, teacher provisioning, and post moderation from your centralized console.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full md:w-auto">
+              <Link
+                href="/admin/users"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-xs font-semibold text-white border border-emerald-600/50 shadow-2xs transition-colors"
+              >
+                <Users className="w-3.5 h-3.5 text-amber-300" />
+                Manage Teachers
+              </Link>
+              <Link
+                href="/admin/madrasas"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-xs font-semibold text-white border border-emerald-600/50 shadow-2xs transition-colors"
+              >
+                <Building2 className="w-3.5 h-3.5 text-amber-300" />
+                Manage Madrasas
+              </Link>
+              <Link
+                href="/admin/moderation"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-xs font-semibold text-white border border-emerald-600/50 shadow-2xs transition-colors"
+              >
+                <CheckCircle className="w-3.5 h-3.5 text-amber-300" />
+                Moderate Posts
+              </Link>
+              <Link
+                href="/upload"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 shadow-sm transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-950" />
+                New Upload
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Teacher Action Center Banner */}
+      {currentUser?.role === "teacher" && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-900 to-emerald-950 border border-emerald-700 text-white shadow-md">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider bg-emerald-700 text-emerald-100 rounded uppercase">
+                Faculty Portal
+              </span>
+              <h2 className="text-base sm:text-lg font-bold mt-1">
+                Welcome, {currentUser.full_name}
+              </h2>
+              <p className="text-xs text-emerald-200">
+                Upload student examination results, attendance records, and educational resources directly to Google Drive.
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Link
+                href="/upload"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 shadow-sm transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload Records
+              </Link>
+              <Link
+                href="/my-uploads"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-xs font-semibold text-white border border-emerald-600/50 transition-colors"
+              >
+                <FolderArchive className="w-3.5 h-3.5 text-emerald-300" />
+                My Submissions
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">

@@ -51,7 +51,13 @@ export async function POST(req: NextRequest) {
             { status: 403 }
           );
         }
-        targetEmail = usernameToInternalEmail(cleanUsername);
+        // Retrieve actual registered email for this user from Supabase Auth
+        const { data: authUserRecord } = await adminClient.auth.admin.getUserById(profile.id);
+        if (authUserRecord?.user?.email) {
+          targetEmail = authUserRecord.user.email;
+        } else {
+          targetEmail = usernameToInternalEmail(cleanUsername);
+        }
       } else {
         targetEmail = usernameToInternalEmail(cleanUsername);
       }
@@ -94,6 +100,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      session: authData.session,
       user: {
         id: userProfile.id,
         fullName: userProfile.full_name,

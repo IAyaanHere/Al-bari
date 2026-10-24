@@ -38,33 +38,60 @@ export function Navbar({ initialUser }: NavbarProps) {
   const [user, setUser] = React.useState(initialUser || null);
 
   React.useEffect(() => {
-    // Check client session
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      if (authUser) {
-        supabase
-          .from("profiles")
-          .select("id, role, full_name")
-          .eq("id", authUser.id)
-          .single()
-          .then(({ data }) => {
-            if (data) setUser(data);
-          });
-      } else {
+
+    const loadUser = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, role, full_name")
+            .eq("id", authUser.id)
+            .single();
+          if (data) {
+            setUser(data);
+            return;
+          }
+        }
+
+        // Secondary check via server endpoint
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData?.user) {
+            setUser(resData.user);
+            return;
+          }
+        }
+
         setUser(null);
+      } catch (err) {
+        console.error("Navbar profile load error:", err);
       }
-    });
+    };
+
+    loadUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setUser(null);
+      if (session?.user) {
+        loadUser();
+      } else {
+        // Also check if server session still exists before wiping
+        fetch("/api/auth/me")
+          .then((res) => res.json())
+          .then((d) => {
+            if (d?.user) setUser(d.user);
+            else setUser(null);
+          })
+          .catch(() => setUser(null));
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [pathname]);
 
   // Close mobile menu on route change
   React.useEffect(() => {
