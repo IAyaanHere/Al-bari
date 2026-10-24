@@ -15,7 +15,7 @@ const RegisterTeacherSchema = z.object({
   fullName: z.string().min(2).max(100),
   username: z.string().min(3).max(30),
   temporaryPassword: z.string().min(8).optional(),
-  assignedMadrasaIds: z.array(z.string().uuid()).min(1, "Assign at least one madrasa"),
+  assignedMadrasaIds: z.array(z.string().uuid()).optional().default([]),
 });
 
 export async function GET() {
@@ -124,12 +124,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Assign Madrasas
-    const assignmentRows = assignedMadrasaIds.map((madrasaId) => ({
-      teacher_id: newUserId,
-      madrasa_id: madrasaId,
-    }));
-
-    await adminClient.from("teacher_madrasas").insert(assignmentRows);
+    if (assignedMadrasaIds && assignedMadrasaIds.length > 0) {
+      const assignmentRows = assignedMadrasaIds.map((madrasaId) => ({
+        teacher_id: newUserId,
+        madrasa_id: madrasaId,
+      }));
+      await adminClient.from("teacher_madrasas").insert(assignmentRows);
+    }
 
     // 4. Record Audit Log
     await adminClient.from("audit_logs").insert({
