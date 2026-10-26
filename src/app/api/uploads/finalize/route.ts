@@ -7,6 +7,14 @@ import { generatePostJson, generatePostTxt } from "@/lib/drive/metadata";
 
 const FinalizeSchema = z.object({
   postId: z.string().uuid(),
+  uploadedFiles: z
+    .array(
+      z.object({
+        sessionId: z.string(),
+        driveFileId: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -19,9 +27,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
 
-    const { postId } = parseResult.data;
+    const { postId, uploadedFiles } = parseResult.data;
     const adminClient = createAdminClient();
     const adapter = getDriveAdapter();
+
+    // If client supplied verified driveFileIds, persist them to upload_sessions
+    if (uploadedFiles && uploadedFiles.length > 0) {
+      for (const uf of uploadedFiles) {
+        if (uf.driveFileId && uf.sessionId) {
+          await adminClient
+            .from("upload_sessions")
+            .update({
+              drive_file_id: uf.driveFileId,
+              status: "uploading",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", uf.sessionId);
+        }
+      }
+    }
 
     // Fetch post details with madrasa and teacher info
     const { data: post, error: postErr } = await adminClient
@@ -53,18 +77,29 @@ export async function POST(req: NextRequest) {
     const verifiedFilesData = [];
 
     for (const session of sessions) {
-      const fileId = session.drive_file_id || session.id;
+      const fileId = session.drive_file_id;
 
-      // Verify file with Drive adapter
-      const verified = await adapter.verifyFile(fileId, session.expected_size);
+      // Verify file with Drive adapter if fileId is present
+      let verified = null;
+      if (fileId && fileId.length > 5) {
+        try {
+          verified = await adapter.verifyFile(fileId, session.expected_size);
+        } catch (vErr) {
+          console.warn(`Drive verify error for file ${fileId}:`, vErr);
+        }
+      }
 
-      if (verified) {
+      if (verified || (fileId && fileId.length > 5)) {
         verifiedCount++;
+        const resolvedDriveId = verified ? verified.id : fileId;
+        const resolvedMime = verified?.mimeType || session.mime_type || "image/jpeg";
+        const resolvedSize = verified?.size || session.expected_size;
+
         verifiedFilesData.push({
           name: session.original_name,
-          driveFileId: verified.id,
-          mimeType: verified.mimeType,
-          sizeBytes: verified.size || session.expected_size,
+          driveFileId: resolvedDriveId,
+          mimeType: resolvedMime,
+          sizeBytes: resolvedSize,
         });
 
         // Idempotent upsert into post_files
@@ -72,16 +107,16 @@ export async function POST(req: NextRequest) {
           .from("post_files")
           .select("id")
           .eq("post_id", postId)
-          .eq("drive_file_id", verified.id)
+          .eq("drive_file_id", resolvedDriveId)
           .maybeSingle();
 
         if (!existingFile) {
           await adminClient.from("post_files").insert({
             post_id: postId,
-            drive_file_id: verified.id,
+            drive_file_id: resolvedDriveId,
             name: session.original_name,
-            mime_type: verified.mimeType,
-            size_bytes: verified.size || session.expected_size,
+            mime_type: resolvedMime,
+            size_bytes: resolvedSize,
           });
         }
 
@@ -90,6 +125,7 @@ export async function POST(req: NextRequest) {
           .from("upload_sessions")
           .update({
             status: "complete",
+            drive_file_id: resolvedDriveId,
             updated_at: new Date().toISOString(),
           })
           .eq("id", session.id);

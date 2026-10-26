@@ -88,14 +88,20 @@ export class GoogleDriveAdapter implements IDriveAdapter {
         appProperties: options.appProperties || {},
       };
 
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": options.mimeType,
+        "X-Upload-Content-Length": options.fileSize.toString(),
+      };
+
+      if (options.origin) {
+        headers["Origin"] = options.origin;
+      }
+
       const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json; charset=UTF-8",
-          "X-Upload-Content-Type": options.mimeType,
-          "X-Upload-Content-Length": options.fileSize.toString(),
-        },
+        headers,
         body: JSON.stringify(metadata),
       });
 

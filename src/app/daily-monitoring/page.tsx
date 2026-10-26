@@ -199,65 +199,107 @@ export default function DailyMonitoringUploadPage() {
   });
   const autoTitle = `${formattedDate} - ${currentMadrasa?.name || "Daily Academic Monitoring"}`;
 
-  // Resumable Chunk Upload function to Google Drive
+  // Resumable Chunk Upload function to Google Drive with Proxy Fallback
   const uploadChunkDirect = async (
     file: File,
     uploadUrl: string,
     onProgress: (uploaded: number, total: number) => void
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; driveFileId?: string; error?: string }> => {
     const totalSize = file.size;
 
-    // Small files (< 8 MiB) single request
-    if (totalSize <= CHUNK_SIZE) {
-      const res = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Range": `bytes 0-${totalSize - 1}/${totalSize}`,
-          "Content-Type": file.type || "application/octet-stream",
-        },
-        body: file,
-      });
-
-      if (res.status === 200 || res.status === 201) {
-        onProgress(totalSize, totalSize);
-        return true;
-      }
-      return false;
-    }
-
-    // Chunked multi-part upload
-    let offset = 0;
-    while (offset < totalSize) {
-      const end = Math.min(offset + CHUNK_SIZE, totalSize);
-      const chunk = file.slice(offset, end);
-
-      const res = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Range": `bytes ${offset}-${end - 1}/${totalSize}`,
-          "Content-Type": file.type || "application/octet-stream",
-        },
-        body: chunk,
-      });
-
-      if (res.status === 308) {
-        const range = res.headers.get("Range");
-        if (range) {
-          const match = range.match(/bytes=0-(\d+)/);
-          offset = match ? parseInt(match[1], 10) + 1 : end;
-        } else {
-          offset = end;
+    // Helper to send PUT request with automatic server proxy fallback if direct browser fetch fails
+    const sendPutRequest = async (
+      targetUrl: string,
+      headers: Record<string, string>,
+      body: BodyInit
+    ): Promise<Response> => {
+      try {
+        const directRes = await fetch(targetUrl, {
+          method: "PUT",
+          headers,
+          body,
+        });
+        // If direct fetch succeeded (200, 201, 308) or returned a response
+        if (directRes.status === 200 || directRes.status === 201 || directRes.status === 308) {
+          return directRes;
         }
-        onProgress(offset, totalSize);
-      } else if (res.status === 200 || res.status === 201) {
-        onProgress(totalSize, totalSize);
-        return true;
-      } else {
-        return false;
+        // If Google Drive returned an error status, try proxy
+        throw new Error(`Direct upload status ${directRes.status}`);
+      } catch (directErr) {
+        // Fallback to server proxy route
+        console.warn("Direct upload failed, routing through proxy fallback:", directErr);
+        const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(targetUrl)}`;
+        return await fetch(proxyUrl, {
+          method: "PUT",
+          headers,
+          body,
+        });
       }
-    }
+    };
 
-    return true;
+    try {
+      // Small files (< 8 MiB) single request
+      if (totalSize <= CHUNK_SIZE) {
+        const res = await sendPutRequest(
+          uploadUrl,
+          {
+            "Content-Range": `bytes 0-${totalSize - 1}/${totalSize}`,
+            "Content-Type": file.type || "application/octet-stream",
+          },
+          file
+        );
+
+        if (res.status === 200 || res.status === 201) {
+          onProgress(totalSize, totalSize);
+          const data = await res.json().catch(() => null);
+          return { success: true, driveFileId: data?.id };
+        }
+        const errText = await res.text().catch(() => "");
+        return { success: false, error: `Upload returned status ${res.status}: ${errText}` };
+      }
+
+      // Chunked multi-part upload
+      let offset = 0;
+      let lastDriveId: string | undefined = undefined;
+
+      while (offset < totalSize) {
+        const end = Math.min(offset + CHUNK_SIZE, totalSize);
+        const chunk = file.slice(offset, end);
+
+        const res = await sendPutRequest(
+          uploadUrl,
+          {
+            "Content-Range": `bytes ${offset}-${end - 1}/${totalSize}`,
+            "Content-Type": file.type || "application/octet-stream",
+          },
+          chunk
+        );
+
+        if (res.status === 308) {
+          const range = res.headers.get("Range");
+          if (range) {
+            const match = range.match(/bytes=0-(\d+)/);
+            offset = match ? parseInt(match[1], 10) + 1 : end;
+          } else {
+            offset = end;
+          }
+          onProgress(offset, totalSize);
+        } else if (res.status === 200 || res.status === 201) {
+          onProgress(totalSize, totalSize);
+          const data = await res.json().catch(() => null);
+          lastDriveId = data?.id;
+          return { success: true, driveFileId: lastDriveId };
+        } else {
+          const errText = await res.text().catch(() => "");
+          return { success: false, error: `Upload chunk failed with status ${res.status}: ${errText}` };
+        }
+      }
+
+      return { success: true, driveFileId: lastDriveId };
+    } catch (err: any) {
+      console.error("Upload process error:", err);
+      return { success: false, error: err?.message || "Upload network failure" };
+    }
   };
 
   // Submit Handler
@@ -383,7 +425,9 @@ export default function DailyMonitoringUploadPage() {
       const postId = initData.postId;
       setCreatedPostId(postId);
 
-      // 4. Stream each image directly to Google Drive
+      // 4. Stream each image directly to Google Drive (with auto-fallback to proxy)
+      const uploadedFiles: Array<{ sessionId: string; driveFileId?: string }> = [];
+
       for (let i = 0; i < preparedList.length; i++) {
         const item = preparedList[i];
         const session = initData.sessions[i];
@@ -396,7 +440,7 @@ export default function DailyMonitoringUploadPage() {
           [item.slotId]: { ...prev[item.slotId], status: "uploading", progress: 10 },
         }));
 
-        const success = await uploadChunkDirect(
+        const result = await uploadChunkDirect(
           item.file,
           session.uploadUrl,
           (uploaded, total) => {
@@ -408,9 +452,14 @@ export default function DailyMonitoringUploadPage() {
           }
         );
 
-        if (!success) {
-          throw new Error(`Failed to upload ${slots[item.slotId].label} to Google Drive.`);
+        if (!result.success) {
+          throw new Error(`Failed to upload ${slots[item.slotId].label}: ${result.error || "Upload failed"}`);
         }
+
+        uploadedFiles.push({
+          sessionId: session.sessionId,
+          driveFileId: result.driveFileId,
+        });
 
         setSlots((prev) => ({
           ...prev,
@@ -422,7 +471,10 @@ export default function DailyMonitoringUploadPage() {
       const finalizeRes = await fetch("/api/uploads/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId }),
+        body: JSON.stringify({
+          postId,
+          uploadedFiles,
+        }),
       });
 
       if (!finalizeRes.ok) {

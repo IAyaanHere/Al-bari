@@ -129,6 +129,10 @@ export async function POST(req: NextRequest) {
 
     // 3. Create Resumable Upload Session for each file
     const uploadSessionsResponse = [];
+    const requestOrigin =
+      req.headers.get("origin") ||
+      (req.headers.get("referer") ? new URL(req.headers.get("referer")!).origin : null) ||
+      "https://albarii.vercel.app";
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -148,6 +152,7 @@ export async function POST(req: NextRequest) {
         parentFolderId: postFolder.id,
         description: `${title} - ${sequentialFileName}`,
         appProperties: appProps,
+        origin: requestOrigin,
       });
 
       // Insert upload_sessions record in Supabase

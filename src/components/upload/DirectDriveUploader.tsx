@@ -41,6 +41,7 @@ interface FileUploadItem {
   errorMessage?: string;
   uploadUrl?: string;
   sessionId?: string;
+  driveFileId?: string;
 }
 
 const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MiB (Google Drive aligned)
@@ -116,7 +117,7 @@ export function DirectDriveUploader({
     setFileItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Upload Single File Chunks directly to Drive URL
+  // Upload Single File Chunks directly to Drive URL with proxy fallback
   const uploadFileInChunks = async (
     item: FileUploadItem,
     uploadUrl: string,
@@ -136,17 +137,34 @@ export function DirectDriveUploader({
       const contentRange = `bytes ${startByte}-${endByte - 1}/${totalBytes}`;
 
       try {
-        const response = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Range": contentRange,
-          },
-          body: chunk,
-        });
+        let response: Response;
+        try {
+          response = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Range": contentRange,
+            },
+            body: chunk,
+          });
+        } catch {
+          // Fallback to server proxy route
+          const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(uploadUrl)}`;
+          response = await fetch(proxyUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Range": contentRange,
+            },
+            body: chunk,
+          });
+        }
 
         if (response.status === 200 || response.status === 201) {
           // Upload complete!
           onProgressUpdate(totalBytes, totalBytes);
+          const data = await response.json().catch(() => null);
+          if (data?.id) {
+            item.driveFileId = data.id;
+          }
           return true;
         } else if (response.status === 308) {
           // Resume Incomplete - query acknowledged range
@@ -328,10 +346,20 @@ export function DirectDriveUploader({
       });
 
       // Step 4: Finalize Post & Persist _post.json / _post.txt
+      const uploadedFiles = preparedItems
+        .filter((item) => item.sessionId)
+        .map((item) => ({
+          sessionId: item.sessionId!,
+          driveFileId: item.driveFileId,
+        }));
+
       const finalRes = await fetch("/api/uploads/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId }),
+        body: JSON.stringify({
+          postId,
+          uploadedFiles,
+        }),
       });
 
       if (!finalRes.ok) {

@@ -24,6 +24,7 @@ export interface ResumableSessionOptions {
   parentFolderId: string;
   description?: string;
   appProperties?: Record<string, string>;
+  origin?: string;
 }
 
 export interface ResumableSessionResult {
