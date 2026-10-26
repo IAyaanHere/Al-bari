@@ -16,6 +16,7 @@ import {
   LogIn,
   Home,
   CheckCircle,
+  Camera,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
 import { LanguageSelector } from "./LanguageSelector";
@@ -117,6 +118,7 @@ export function Navbar({ initialUser }: NavbarProps) {
 
   const teacherLinks = isTeacher
     ? [
+        { href: "/daily-monitoring", label: "Daily Monitoring", icon: Camera },
         { href: "/upload", label: t.nav.upload, icon: Upload },
         { href: "/my-uploads", label: t.nav.myUploads, icon: FolderArchive },
       ]

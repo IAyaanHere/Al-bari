@@ -21,6 +21,7 @@ const InitiateUploadSchema = z.object({
   category: z.enum(["photos", "results", "tests", "resources", "attendance", "activity", "other"]),
   eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)"),
   files: z.array(FileMetaSchema).min(1).max(MAX_FILES_PER_POST),
+  isDailyMonitoring: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { madrasaId, title, description, category, eventDate, files } = parseResult.data;
+    const { madrasaId, title, description, category, eventDate, files, isDailyMonitoring } = parseResult.data;
 
     // Validate madrasa assignment
     const accessCheck = await validateMadrasaAccess(profile.id, profile.role, madrasaId);
@@ -75,6 +76,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Madrasa not found" }, { status: 404 });
     }
 
+    // Daily Academic Monitoring updates are auto-approved & public by design
+    const initialVisibility = isDailyMonitoring ? "public" : "private";
+    const initialApproval = isDailyMonitoring ? "approved" : "pending";
+    const initialApprovedAt = isDailyMonitoring ? new Date().toISOString() : null;
+
     // 1. Create pending post record in Supabase
     const { data: post, error: postErr } = await adminClient
       .from("posts")
@@ -86,8 +92,9 @@ export async function POST(req: NextRequest) {
         category,
         event_date: eventDate,
         status: "pending",
-        visibility: "private",
-        approval_status: "pending",
+        visibility: initialVisibility,
+        approval_status: initialApproval,
+        approved_at: initialApprovedAt,
       })
       .select()
       .single();

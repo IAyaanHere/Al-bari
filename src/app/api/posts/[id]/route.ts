@@ -127,8 +127,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Record not found" }, { status: 404 });
     }
 
-    if (currentProfile.role !== "admin" && post.teacher_id !== currentProfile.id) {
-      return NextResponse.json({ error: "Forbidden: Not owner" }, { status: 403 });
+    // Strict requirement: Only Head Administrator can delete records
+    if (currentProfile.role !== "admin") {
+      return NextResponse.json(
+        { error: "Forbidden: Only Head Administrator can delete records." },
+        { status: 403 }
+      );
     }
 
     // Soft delete: sets deleted_at to current timestamp

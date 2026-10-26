@@ -157,10 +157,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update post status
+    // Update post status (maintain auto-approval for Daily Monitoring)
+    const isDaily = post.approval_status === "approved" || post.title.includes("Daily Monitoring") || post.title.includes("روزانہ");
     await adminClient
       .from("posts")
-      .update({ status: newStatus })
+      .update({
+        status: newStatus,
+        approval_status: isDaily ? "approved" : post.approval_status,
+        visibility: isDaily ? "public" : post.visibility,
+        approved_at: isDaily ? (post.approved_at || new Date().toISOString()) : post.approved_at,
+      })
       .eq("id", postId);
 
     return NextResponse.json({

@@ -195,18 +195,20 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
           <span>{t.post.details.backToPosts}</span>
         </Link>
 
-        {canModify && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {canModify && (
             <Button variant="outline" size="sm" onClick={() => setEditModalOpen(true)} className="gap-1.5">
               <Edit className="w-3.5 h-3.5" />
               <span>Edit Details</span>
             </Button>
+          )}
+          {isAdmin && (
             <Button variant="danger" size="sm" onClick={handleDelete} className="gap-1.5">
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
+              <span>Delete Record</span>
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Moderation Status Banner if not approved */}

@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
         { count: "exact" }
       );
 
-    // Soft deletion filter
-    if (!isAdmin) {
+    // Soft deletion filter: do not show deleted posts
+    const showDeleted = searchParams.get("showDeleted") === "true";
+    if (!showDeleted) {
       query = query.is("deleted_at", null);
     }
 
