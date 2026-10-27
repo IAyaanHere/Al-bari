@@ -91,7 +91,11 @@ export class MockDriveAdapter implements IDriveAdapter {
     return this.verifyFile(fileId);
   }
 
-  async getFileStream(fileId: string): Promise<{ stream: Readable; mimeType: string; size?: number }> {
+  async getFileStream(
+    fileId: string,
+    knownMime?: string,
+    knownSize?: number
+  ): Promise<{ stream: Readable; mimeType: string; size?: number }> {
     // Generate a minimal 1x1 green PNG placeholder stream for image preview mocks
     const png1x1 = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -100,8 +104,8 @@ export class MockDriveAdapter implements IDriveAdapter {
 
     return {
       stream: Readable.from(png1x1),
-      mimeType: "image/png",
-      size: png1x1.length,
+      mimeType: knownMime || "image/png",
+      size: knownSize || png1x1.length,
     };
   }
 

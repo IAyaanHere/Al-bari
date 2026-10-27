@@ -130,13 +130,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Link
-          href="/daily-monitoring"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm border border-emerald-700 transition-all self-start sm:self-auto shrink-0"
-        >
-          <Camera className="w-4 h-4 text-amber-300" />
-          <span>Daily Academic Monitoring</span>
-        </Link>
+        {currentUser && (currentUser.role === "teacher" || currentUser.role === "admin") && (
+          <Link
+            href="/daily-monitoring"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm border border-emerald-700 transition-all self-start sm:self-auto shrink-0"
+          >
+            <Camera className="w-4 h-4 text-amber-300" />
+            <span>Daily Academic Monitoring</span>
+          </Link>
+        )}
       </div>
 
       {/* Admin Action Center Banner */}

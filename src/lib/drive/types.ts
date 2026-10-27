@@ -43,7 +43,11 @@ export interface IDriveAdapter {
   /**
    * Retrieves a readable stream for a file (used by authenticated thumbnail proxy).
    */
-  getFileStream(fileId: string): Promise<{ stream: Readable; mimeType: string; size?: number }>;
+  getFileStream(
+    fileId: string,
+    knownMime?: string,
+    knownSize?: number
+  ): Promise<{ stream: Readable; mimeType: string; size?: number }>;
 
   /**
    * Deletes or trashes a file or folder in Google Drive.

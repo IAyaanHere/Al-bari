@@ -30,19 +30,30 @@ export async function GET(
       return new NextResponse("File record not found or unauthorized", { status: 404 });
     }
 
-    // 2. Authorization check
-    const currentProfile = await getCurrentProfile();
-    const isAllowed = canViewPost(postFile.post, currentProfile);
+    const isPublicPost =
+      postFile.post.visibility === "public" &&
+      postFile.post.approval_status === "approved" &&
+      !postFile.post.deleted_at;
 
-    if (!isAllowed) {
-      return new NextResponse("Forbidden: Access to this private educational record is restricted", {
-        status: 403,
-      });
+    // 2. Authorization check: skip auth roundtrip if post is already public
+    if (!isPublicPost) {
+      const currentProfile = await getCurrentProfile();
+      const isAllowed = canViewPost(postFile.post, currentProfile);
+
+      if (!isAllowed) {
+        return new NextResponse("Forbidden: Access to this private educational record is restricted", {
+          status: 403,
+        });
+      }
     }
 
-    // 3. Stream file contents through adapter
+    // 3. Stream file contents through adapter with known mime type from DB
     const adapter = getDriveAdapter();
-    const { stream, mimeType, size } = await adapter.getFileStream(driveFileId);
+    const { stream, mimeType, size } = await adapter.getFileStream(
+      driveFileId,
+      postFile.mime_type,
+      postFile.size_bytes
+    );
 
     // Convert node readable stream to web ReadableStream
     const webStream = new ReadableStream({
@@ -53,9 +64,8 @@ export async function GET(
       },
     });
 
-    const isPublicPost = postFile.post.visibility === "public" && postFile.post.approval_status === "approved";
     const cacheHeader = isPublicPost
-      ? "public, max-age=3600, s-maxage=3600"
+      ? "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800, immutable"
       : "private, no-cache, no-store, must-revalidate";
 
     const headers: Record<string, string> = {

@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
     const newStatus = allVerified ? "complete" : "incomplete";
 
     if (allVerified && post.drive_folder_id) {
-      // 1. Generate and upload _post.json
+      // 1. Generate post metadata
       const postJsonContent = generatePostJson({
         postId: post.id,
         title: post.title,
@@ -164,15 +164,6 @@ export async function POST(req: NextRequest) {
         files: verifiedFilesData,
       });
 
-      await adapter.uploadBufferOrString(
-        "_post.json",
-        postJsonContent,
-        "application/json",
-        post.drive_folder_id,
-        `Metadata for post: ${post.title}`
-      );
-
-      // 2. Generate and upload _post.txt
       const postTxtContent = generatePostTxt({
         title: post.title,
         description: post.description,
@@ -184,24 +175,33 @@ export async function POST(req: NextRequest) {
         fileCount: verifiedFilesData.length,
       });
 
-      await adapter.uploadBufferOrString(
-        "_post.txt",
-        postTxtContent,
-        "text/plain",
-        post.drive_folder_id,
-        `Summary for post: ${post.title}`
-      );
+      // Upload _post.json and _post.txt concurrently in parallel
+      await Promise.allSettled([
+        adapter.uploadBufferOrString(
+          "_post.json",
+          postJsonContent,
+          "application/json",
+          post.drive_folder_id,
+          `Metadata for post: ${post.title}`
+        ),
+        adapter.uploadBufferOrString(
+          "_post.txt",
+          postTxtContent,
+          "text/plain",
+          post.drive_folder_id,
+          `Summary for post: ${post.title}`
+        ),
+      ]);
     }
 
-    // Update post status (maintain auto-approval for Daily Monitoring)
-    const isDaily = post.approval_status === "approved" || post.title.includes("Daily Monitoring") || post.title.includes("روزانہ");
+    // Update post status (all verified posts are directly approved & public)
     await adminClient
       .from("posts")
       .update({
         status: newStatus,
-        approval_status: isDaily ? "approved" : post.approval_status,
-        visibility: isDaily ? "public" : post.visibility,
-        approved_at: isDaily ? (post.approved_at || new Date().toISOString()) : post.approved_at,
+        approval_status: "approved",
+        visibility: "public",
+        approved_at: post.approved_at || new Date().toISOString(),
       })
       .eq("id", postId);
 

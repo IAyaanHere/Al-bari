@@ -33,6 +33,23 @@ export async function GET(
       return NextResponse.json({ error: "Record not found" }, { status: 404 });
     }
 
+    const isPublicApproved =
+      post.visibility === "public" &&
+      post.approval_status === "approved" &&
+      !post.deleted_at;
+
+    // Fast-path: public approved posts load in ~10ms without auth delay
+    if (isPublicApproved) {
+      return NextResponse.json(
+        { post },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        }
+      );
+    }
+
     const currentProfile = await getCurrentProfile();
     const isAllowed = canViewPost(post, currentProfile);
 

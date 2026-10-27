@@ -78,14 +78,7 @@ export function Navbar({ initialUser }: NavbarProps) {
       if (session?.user) {
         loadUser();
       } else {
-        // Also check if server session still exists before wiping
-        fetch("/api/auth/me")
-          .then((res) => res.json())
-          .then((d) => {
-            if (d?.user) setUser(d.user);
-            else setUser(null);
-          })
-          .catch(() => setUser(null));
+        setUser(null);
       }
     });
 
@@ -100,11 +93,20 @@ export function Navbar({ initialUser }: NavbarProps) {
   }, [pathname]);
 
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setUser(null);
-    router.push("/login");
-    router.refresh();
+    try {
+      // 1. Clear server-side session cookies
+      await fetch("/api/auth/logout", { method: "POST" });
+      
+      // 2. Clear client-side supabase session
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Signout error:", err);
+    } finally {
+      setUser(null);
+      setMobileMenuOpen(false);
+      window.location.href = "/login";
+    }
   };
 
   const isAdmin = user?.role === "admin";
@@ -137,17 +139,17 @@ export function Navbar({ initialUser }: NavbarProps) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-emerald-900/10 bg-white/95 backdrop-blur-md shadow-2xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 sm:h-18 items-center justify-between gap-4">
+        <div className="flex h-16 sm:h-18 items-center justify-between gap-2 sm:gap-4">
           {/* Logo & Brand */}
-          <Link href="/" className="flex items-center gap-3 shrink-0 group">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-800 to-emerald-950 flex items-center justify-center text-amber-400 shadow-md group-hover:scale-105 transition-transform border border-amber-500/30">
-              <span className="font-bold text-lg sm:text-xl">ب</span>
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink min-w-0 group">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-800 to-emerald-950 flex items-center justify-center text-amber-400 shadow-md group-hover:scale-105 transition-transform border border-amber-500/30 shrink-0">
+              <span className="font-bold text-base sm:text-xl">ب</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base sm:text-lg tracking-tight text-emerald-950 leading-tight">
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-sm sm:text-base lg:text-lg tracking-tight text-emerald-950 leading-tight truncate">
                 {t.appName}
               </span>
-              <span className="text-[10px] sm:text-xs text-amber-700 font-medium tracking-wide">
+              <span className="hidden sm:inline text-[10px] sm:text-xs text-amber-700 font-medium tracking-wide">
                 Islamic Education Foundation
               </span>
             </div>
@@ -180,24 +182,24 @@ export function Navbar({ initialUser }: NavbarProps) {
             <LanguageSelector />
 
             {user ? (
-              <div className="flex items-center gap-2 border-s border-slate-200 ps-3">
+              <div className="flex items-center gap-2.5 border-s border-slate-200 ps-3">
                 <div className="flex flex-col text-right">
-                  <span className="text-xs font-semibold text-slate-900 truncate max-w-[120px]">
+                  <span className="text-xs font-bold text-slate-900 truncate max-w-[130px]">
                     {user.full_name || "User"}
                   </span>
-                  <span className="text-[10px] uppercase font-bold text-emerald-700">
+                  <span className="text-[10px] uppercase font-extrabold text-emerald-800">
                     {user.role}
                   </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={handleSignOut}
-                  className="text-slate-600 hover:text-rose-600"
-                  title={t.nav.logout}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 transition-all shadow-2xs hover:shadow-xs"
+                  title="Logout / لاگ آؤٹ"
                 >
-                  <LogOut className="w-4 h-4" />
-                </Button>
+                  <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Logout</span>
+                </button>
               </div>
             ) : (
               <Link href="/login">
@@ -209,15 +211,16 @@ export function Navbar({ initialUser }: NavbarProps) {
             )}
           </div>
 
-          {/* Mobile Right Controls: Language Selector + Hamburger Menu Button */}
-          <div className="flex items-center gap-2 lg:hidden">
+          {/* Mobile Right Controls: Language Selector + Hamburger Menu Button (Always visible & shrink-0) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden shrink-0">
             <LanguageSelector />
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors touch-target flex items-center justify-center border border-slate-200"
+              className="p-2 sm:p-2.5 rounded-xl text-slate-800 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 transition-colors touch-target flex items-center justify-center border border-slate-300 shadow-2xs shrink-0"
               aria-label="Toggle navigation menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
           </div>
         </div>
@@ -228,21 +231,32 @@ export function Navbar({ initialUser }: NavbarProps) {
         <div className="lg:hidden fixed inset-x-0 top-16 sm:top-18 bottom-0 z-50 bg-black/50 backdrop-blur-xs flex flex-col justify-start animate-in fade-in duration-150">
           <div className="w-full bg-white border-b border-slate-200 p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
             {/* User status card if logged in */}
-            {user && (
-              <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-emerald-950">{user.full_name}</p>
-                  <p className="text-xs text-emerald-700 font-semibold uppercase">{user.role}</p>
+            {user ? (
+              <div className="mb-4 p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-emerald-950 truncate">{user.full_name}</p>
+                  <span className="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-extrabold uppercase bg-emerald-800 text-white rounded">
+                    {user.role}
+                  </span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={handleSignOut}
-                  className="text-rose-600 hover:bg-rose-50 border-rose-200 gap-1.5"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors shadow-2xs"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>{t.nav.logout}</span>
-                </Button>
+                  <LogOut className="w-4 h-4 text-rose-600" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <div className="mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-medium">Public Guest Access</span>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="primary" size="sm" className="gap-1.5 text-xs">
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>{t.nav.login}</span>
+                  </Button>
+                </Link>
               </div>
             )}
 

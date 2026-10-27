@@ -8,6 +8,9 @@ import {
   ResumableSessionResult,
 } from "@/types/drive";
 
+// In-memory cache for folder metadata to eliminate redundant Google Drive API roundtrips
+const folderCache = new Map<string, DriveFolderMetadata>();
+
 export class GoogleDriveAdapter implements IDriveAdapter {
   private drive: drive_v3.Drive;
   private oauth2Client;
@@ -27,10 +30,34 @@ export class GoogleDriveAdapter implements IDriveAdapter {
     this.oauth2Client.setCredentials({ refresh_token: refreshToken });
 
     this.drive = google.drive({ version: "v3", auth: this.oauth2Client });
+
+    // Seed root folder cache if configured
+    const rootId = process.env.DRIVE_ROOT_FOLDER_ID;
+    if (rootId) {
+      folderCache.set("root:Al Bari Organization Data", {
+        id: rootId,
+        name: "Al Bari Organization Data",
+      });
+    }
   }
 
   async findOrCreateFolder(folderName: string, parentFolderId?: string): Promise<DriveFolderMetadata> {
     const rootId = parentFolderId || process.env.DRIVE_ROOT_FOLDER_ID || "root";
+    const cacheKey = `${rootId}:${folderName.trim()}`;
+
+    // Return cached folder immediately (0ms)
+    const cached = folderCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Direct match if root folder requested
+    if (folderName === "Al Bari Organization Data" && process.env.DRIVE_ROOT_FOLDER_ID) {
+      const rootMeta = { id: process.env.DRIVE_ROOT_FOLDER_ID, name: folderName };
+      folderCache.set(cacheKey, rootMeta);
+      return rootMeta;
+    }
+
     const escapedName = folderName.replace(/'/g, "\\'");
     const query = `mimeType = 'application/vnd.google-apps.folder' and name = '${escapedName}' and '${rootId}' in parents and trashed = false`;
 
@@ -44,11 +71,13 @@ export class GoogleDriveAdapter implements IDriveAdapter {
 
       if (res.data.files && res.data.files.length > 0) {
         const folder = res.data.files[0];
-        return {
+        const result: DriveFolderMetadata = {
           id: folder.id!,
           name: folder.name!,
           parentId: folder.parents ? folder.parents[0] : undefined,
         };
+        folderCache.set(cacheKey, result);
+        return result;
       }
 
       // Create folder if not found
@@ -61,11 +90,13 @@ export class GoogleDriveAdapter implements IDriveAdapter {
         fields: "id, name, parents",
       });
 
-      return {
+      const result: DriveFolderMetadata = {
         id: createRes.data.id!,
         name: createRes.data.name!,
         parentId: createRes.data.parents ? createRes.data.parents[0] : rootId,
       };
+      folderCache.set(cacheKey, result);
+      return result;
     } catch (error: any) {
       console.error(`Error in findOrCreateFolder (${folderName}):`, error?.message || error);
       throw new Error(`Google Drive folder error: ${error?.message || "Unknown error"}`);
@@ -204,9 +235,14 @@ export class GoogleDriveAdapter implements IDriveAdapter {
     return this.verifyFile(fileId);
   }
 
-  async getFileStream(fileId: string): Promise<{ stream: Readable; mimeType: string; size?: number }> {
+  async getFileStream(
+    fileId: string,
+    knownMime?: string,
+    knownSize?: number
+  ): Promise<{ stream: Readable; mimeType: string; size?: number }> {
     try {
-      const meta = await this.getFileMetadata(fileId);
+      // If mimeType is already known from DB, avoid redundant getFileMetadata network call
+      const mime = knownMime || (await this.getFileMetadata(fileId))?.mimeType || "application/octet-stream";
       const res = await this.drive.files.get(
         { fileId, alt: "media" },
         { responseType: "stream" }
@@ -214,8 +250,8 @@ export class GoogleDriveAdapter implements IDriveAdapter {
 
       return {
         stream: res.data as Readable,
-        mimeType: meta?.mimeType || "application/octet-stream",
-        size: meta?.size,
+        mimeType: mime,
+        size: knownSize,
       };
     } catch (error: any) {
       console.error(`Error streaming file ${fileId}:`, error?.message || error);

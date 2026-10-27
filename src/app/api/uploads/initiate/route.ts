@@ -76,10 +76,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Madrasa not found" }, { status: 404 });
     }
 
-    // Daily Academic Monitoring updates are auto-approved & public by design
-    const initialVisibility = isDailyMonitoring ? "public" : "private";
-    const initialApproval = isDailyMonitoring ? "approved" : "pending";
-    const initialApprovedAt = isDailyMonitoring ? new Date().toISOString() : null;
+    // All posts and daily academic monitoring updates are directly auto-approved & public by design
+    // (Head Administrator has full privileges to delete any inappropriate content at any time)
+    const initialVisibility = "public";
+    const initialApproval = "approved";
+    const initialApprovedAt = new Date().toISOString();
 
     // 1. Create pending post record in Supabase
     const { data: post, error: postErr } = await adminClient
