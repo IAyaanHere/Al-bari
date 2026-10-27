@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdmin, requireAuth } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDriveAdapter } from "@/lib/drive/factory";
 import { sanitizeFilename } from "@/lib/utils";
@@ -15,6 +15,8 @@ const CreateMadrasaSchema = z.object({
 
 export async function GET() {
   try {
+    // Require at least authenticated user to list madrasas
+    await requireAuth();
     const adminClient = createAdminClient();
     const { data: madrasas, error } = await adminClient
       .from("madrasas")

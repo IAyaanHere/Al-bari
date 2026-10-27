@@ -23,7 +23,7 @@ async function getMadrasaDetails(id: string) {
     .select(`
       id, title, description, category, event_date, status, approval_status, visibility, created_at,
       madrasa:madrasas(*),
-      teacher:profiles(id, full_name, username),
+      teacher:profiles!posts_teacher_id_fkey(id, full_name, username),
       files:post_files(*)
     `)
     .eq("madrasa_id", id)

@@ -65,7 +65,7 @@ export default function DashboardPage() {
 
   // Load madrasas list
   React.useEffect(() => {
-    fetch("/api/admin/madrasas")
+    fetch("/api/madrasas")
       .then((res) => res.json())
       .then((data) => {
         if (data.madrasas) setMadrasas(data.madrasas);

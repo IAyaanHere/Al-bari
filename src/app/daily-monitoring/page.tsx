@@ -199,55 +199,27 @@ export default function DailyMonitoringUploadPage() {
   });
   const autoTitle = `${formattedDate} - ${currentMadrasa?.name || "Daily Academic Monitoring"}`;
 
-  // Resumable Chunk Upload function to Google Drive with Proxy Fallback
-  const uploadChunkDirect = async (
+  // Upload via server proxy to avoid CORS issues with Google Drive
+  const uploadViaProxy = async (
     file: File,
     uploadUrl: string,
+    sessionId: string,
     onProgress: (uploaded: number, total: number) => void
   ): Promise<{ success: boolean; driveFileId?: string; error?: string }> => {
     const totalSize = file.size;
 
-    // Helper to send PUT request with automatic server proxy fallback if direct browser fetch fails
-    const sendPutRequest = async (
-      targetUrl: string,
-      headers: Record<string, string>,
-      body: BodyInit
-    ): Promise<Response> => {
-      try {
-        const directRes = await fetch(targetUrl, {
-          method: "PUT",
-          headers,
-          body,
-        });
-        // If direct fetch succeeded (200, 201, 308) or returned a response
-        if (directRes.status === 200 || directRes.status === 201 || directRes.status === 308) {
-          return directRes;
-        }
-        // If Google Drive returned an error status, try proxy
-        throw new Error(`Direct upload status ${directRes.status}`);
-      } catch (directErr) {
-        // Fallback to server proxy route
-        console.warn("Direct upload failed, routing through proxy fallback:", directErr);
-        const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(targetUrl)}`;
-        return await fetch(proxyUrl, {
-          method: "PUT",
-          headers,
-          body,
-        });
-      }
-    };
-
     try {
       // Small files (< 8 MiB) single request
       if (totalSize <= CHUNK_SIZE) {
-        const res = await sendPutRequest(
-          uploadUrl,
-          {
+        const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(uploadUrl)}&sessionId=${encodeURIComponent(sessionId)}`;
+        const res = await fetch(proxyUrl, {
+          method: "PUT",
+          headers: {
             "Content-Range": `bytes 0-${totalSize - 1}/${totalSize}`,
-            "Content-Type": file.type || "application/octet-stream",
+            "Content-Type": file.type || "image/jpeg",
           },
-          file
-        );
+          body: file,
+        });
 
         if (res.status === 200 || res.status === 201) {
           onProgress(totalSize, totalSize);
@@ -260,20 +232,19 @@ export default function DailyMonitoringUploadPage() {
 
       // Chunked multi-part upload
       let offset = 0;
-      let lastDriveId: string | undefined = undefined;
-
       while (offset < totalSize) {
         const end = Math.min(offset + CHUNK_SIZE, totalSize);
         const chunk = file.slice(offset, end);
+        const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(uploadUrl)}&sessionId=${encodeURIComponent(sessionId)}`;
 
-        const res = await sendPutRequest(
-          uploadUrl,
-          {
+        const res = await fetch(proxyUrl, {
+          method: "PUT",
+          headers: {
             "Content-Range": `bytes ${offset}-${end - 1}/${totalSize}`,
-            "Content-Type": file.type || "application/octet-stream",
+            "Content-Type": file.type || "image/jpeg",
           },
-          chunk
-        );
+          body: chunk,
+        });
 
         if (res.status === 308) {
           const range = res.headers.get("Range");
@@ -287,17 +258,15 @@ export default function DailyMonitoringUploadPage() {
         } else if (res.status === 200 || res.status === 201) {
           onProgress(totalSize, totalSize);
           const data = await res.json().catch(() => null);
-          lastDriveId = data?.id;
-          return { success: true, driveFileId: lastDriveId };
+          return { success: true, driveFileId: data?.id };
         } else {
           const errText = await res.text().catch(() => "");
-          return { success: false, error: `Upload chunk failed with status ${res.status}: ${errText}` };
+          return { success: false, error: `Chunk failed status ${res.status}: ${errText}` };
         }
       }
 
-      return { success: true, driveFileId: lastDriveId };
+      return { success: true };
     } catch (err: any) {
-      console.error("Upload process error:", err);
       return { success: false, error: err?.message || "Upload network failure" };
     }
   };
@@ -440,9 +409,10 @@ export default function DailyMonitoringUploadPage() {
           [item.slotId]: { ...prev[item.slotId], status: "uploading", progress: 10 },
         }));
 
-        const result = await uploadChunkDirect(
+        const result = await uploadViaProxy(
           item.file,
           session.uploadUrl,
+          session.sessionId,
           (uploaded, total) => {
             const pct = Math.round((uploaded / total) * 100);
             setSlots((prev) => ({

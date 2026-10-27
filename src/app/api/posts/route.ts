@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
         id, madrasa_id, teacher_id, title, description, category, event_date,
         drive_folder_id, status, visibility, approval_status, created_at, deleted_at,
         madrasa:madrasas(id, name, city, active),
-        teacher:profiles(id, full_name, username),
+        teacher:profiles!posts_teacher_id_fkey(id, full_name, username),
         files:post_files(id, name, mime_type, size_bytes, drive_file_id)
       `,
         { count: "exact" }

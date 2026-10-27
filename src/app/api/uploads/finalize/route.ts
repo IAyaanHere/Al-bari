@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     // Fetch post details with madrasa and teacher info
     const { data: post, error: postErr } = await adminClient
       .from("posts")
-      .select("*, madrasa:madrasas(*), teacher:profiles(*)")
+      .select("*, madrasa:madrasas(*), teacher:profiles!posts_teacher_id_fkey(*)")
       .eq("id", postId)
       .single();
 

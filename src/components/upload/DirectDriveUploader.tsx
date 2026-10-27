@@ -117,7 +117,7 @@ export function DirectDriveUploader({
     setFileItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Upload Single File Chunks directly to Drive URL with proxy fallback
+  // Upload file chunks via server proxy (avoids CORS issues with Google Drive)
   const uploadFileInChunks = async (
     item: FileUploadItem,
     uploadUrl: string,
@@ -126,8 +126,6 @@ export function DirectDriveUploader({
     const targetFile = (!uploadOriginalQuality && item.compressedFile) || item.file;
     const totalBytes = targetFile.size;
     let startByte = 0;
-
-    // Retry loop with acknowledged offset
     let attempts = 0;
     const maxAttempts = 3;
 
@@ -135,31 +133,16 @@ export function DirectDriveUploader({
       const endByte = Math.min(startByte + CHUNK_SIZE, totalBytes);
       const chunk = targetFile.slice(startByte, endByte);
       const contentRange = `bytes ${startByte}-${endByte - 1}/${totalBytes}`;
+      const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(uploadUrl)}&sessionId=${encodeURIComponent(item.sessionId || "")}`;
 
       try {
-        let response: Response;
-        try {
-          response = await fetch(uploadUrl, {
-            method: "PUT",
-            headers: {
-              "Content-Range": contentRange,
-            },
-            body: chunk,
-          });
-        } catch {
-          // Fallback to server proxy route
-          const proxyUrl = `/api/uploads/proxy?uploadUrl=${encodeURIComponent(uploadUrl)}`;
-          response = await fetch(proxyUrl, {
-            method: "PUT",
-            headers: {
-              "Content-Range": contentRange,
-            },
-            body: chunk,
-          });
-        }
+        const response = await fetch(proxyUrl, {
+          method: "PUT",
+          headers: { "Content-Range": contentRange },
+          body: chunk,
+        });
 
         if (response.status === 200 || response.status === 201) {
-          // Upload complete!
           onProgressUpdate(totalBytes, totalBytes);
           const data = await response.json().catch(() => null);
           if (data?.id) {
@@ -167,7 +150,6 @@ export function DirectDriveUploader({
           }
           return true;
         } else if (response.status === 308) {
-          // Resume Incomplete - query acknowledged range
           const rangeHeader = response.headers.get("Range");
           if (rangeHeader) {
             const match = rangeHeader.match(/bytes=0-(\d+)/);
@@ -181,7 +163,6 @@ export function DirectDriveUploader({
           }
           onProgressUpdate(startByte, totalBytes);
         } else {
-          // Non-recoverable error
           attempts++;
           await new Promise((r) => setTimeout(r, 1000 * attempts));
         }
