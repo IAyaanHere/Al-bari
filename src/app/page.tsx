@@ -10,12 +10,14 @@ import {
   Users,
   Search,
   Sparkles,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PostCard } from "@/components/dashboard/PostCard";
 import { Post, Madrasa } from "@/types/database";
+import { HomeTeacherPanel } from "@/components/home/HomeTeacherPanel";
 
 export const revalidate = 60; // ISR 60 seconds
 
@@ -102,9 +104,15 @@ export default async function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link href="/daily-monitoring">
+              <Button variant="gold" size="lg" className="w-full sm:w-auto px-6 font-black gap-2 shadow-md bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-300">
+                <Camera className="w-5 h-5 text-slate-950" />
+                <span>Upload Daily Monitoring</span>
+              </Button>
+            </Link>
             <Link href="/dashboard">
-              <Button variant="gold" size="lg" className="w-full sm:w-auto px-6 font-bold gap-2">
-                <Search className="w-4 h-4" />
+              <Button variant="secondary" size="lg" className="w-full sm:w-auto px-6 font-semibold gap-2 bg-emerald-800 hover:bg-emerald-700 text-white border border-emerald-600/50">
+                <Search className="w-4 h-4 text-emerald-200" />
                 <span>Explore Public Records</span>
               </Button>
             </Link>
@@ -117,6 +125,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Faculty Action Center (Teacher / Admin Shortcut Panel) */}
+      <HomeTeacherPanel />
 
       {/* KPI Stats Ribbon */}
       <section className="bg-white border-b border-slate-200/80 shadow-2xs py-8 px-4 sm:px-6 lg:px-8">
