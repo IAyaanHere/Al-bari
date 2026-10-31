@@ -43,9 +43,8 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
   const isRejected = post.approval_status === "rejected";
 
   const isDailyMonitoring =
-    post.category === "activity" ||
-    post.title.includes("Daily Monitoring") ||
-    post.title.includes(" - ");
+    post.title.toLowerCase().includes("daily monitoring") ||
+    post.title.toLowerCase().includes("daily academic monitoring");
 
   const imageFiles = post.files?.filter((f) => f.mime_type?.startsWith("image/")) || [];
   const fileCount = post.files ? post.files.length : 0;
@@ -120,24 +119,28 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                   loading="lazy"
                 />
-                <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-xs">
-                  Notebook
-                </span>
+                {isDailyMonitoring && (
+                  <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-xs">
+                    Notebook
+                  </span>
+                )}
               </div>
               <div className="relative h-full w-full bg-slate-200 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/files/${imageFiles[1].drive_file_id}/thumb`}
-                  alt="Blackboard / Lesson"
+                  alt="Record Photo"
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                   loading="lazy"
                 />
-                <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-xs">
-                  Blackboard / Chapter
-                </span>
+                {isDailyMonitoring && (
+                  <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-xs">
+                    Blackboard / Chapter
+                  </span>
+                )}
                 {imageFiles.length > 2 && (
-                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-500 text-slate-950 shadow-xs">
-                    +{imageFiles.length - 2}
+                  <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-400 text-slate-950 shadow-xs border border-amber-500">
+                    +{imageFiles.length - 2} Photos
                   </span>
                 )}
               </div>
@@ -152,21 +155,33 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
                 <span>Daily Monitoring</span>
               </Badge>
             ) : (
-              <Badge variant="gold" className="shadow-xs backdrop-blur-md">
-                {categoryName}
-              </Badge>
+              <>
+                <Badge className="shadow-xs backdrop-blur-md font-black text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
+                  🏷️ {post.title}
+                </Badge>
+                <Badge className="shadow-xs backdrop-blur-md text-[10px] font-semibold bg-emerald-950/80 text-emerald-100 border border-emerald-700/60">
+                  {categoryName}
+                </Badge>
+              </>
             )}
           </div>
         </div>
       ) : (
-        <div className="p-4 sm:p-5 pb-0 flex items-center justify-between">
+        <div className="p-4 sm:p-5 pb-0 flex items-center justify-between flex-wrap gap-2">
           {isDailyMonitoring ? (
             <Badge variant="success" className="font-bold text-[11px] gap-1 bg-emerald-800 text-amber-300">
               <BookOpen className="w-3 h-3" />
               <span>Daily Monitoring</span>
             </Badge>
           ) : (
-            <Badge variant="gold">{categoryName}</Badge>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge className="font-black text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
+                🏷️ {post.title}
+              </Badge>
+              <Badge className="text-[10px] font-semibold bg-emerald-100 text-emerald-950 border border-emerald-300">
+                {categoryName}
+              </Badge>
+            </div>
           )}
 
           {isApproved ? (

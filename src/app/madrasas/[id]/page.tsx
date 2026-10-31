@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2, MapPin, User, ArrowLeft, Calendar, FileText } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PostCard } from "@/components/dashboard/PostCard";
+import { MadrasaPostsSection } from "@/components/madrasas/MadrasaPostsSection";
 import { Post } from "@/types/database";
 
 export const revalidate = 60;
@@ -82,30 +82,8 @@ export default async function MadrasaDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* Activity Timeline of Approved Educational Records */}
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            Activity Timeline & Educational Archives
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Verified records, examinations, and activities published for this madrasa ({posts.length}).
-          </p>
-        </div>
-
-        {posts.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 shadow-2xs">
-            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="font-semibold text-slate-700">No public records found for this madrasa.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Educational Archives & Category Posts Section */}
+      <MadrasaPostsSection posts={posts} madrasaName={madrasa.name} />
     </div>
   );
 }
