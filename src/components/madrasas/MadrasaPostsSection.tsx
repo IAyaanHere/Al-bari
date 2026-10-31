@@ -44,11 +44,11 @@ export function MadrasaPostsSection({ posts, madrasaName }: MadrasaPostsSectionP
     });
 
     return [
-      { id: "all", label: "All Archives", count: counts.all, icon: BookOpen },
+      { id: "all", label: "All Records", count: counts.all, icon: BookOpen },
+      { id: "resources", label: "Faculty & Student Feedbacks", count: counts.resources, icon: MessageSquare },
       { id: "activity", label: "Activities & Photos", count: counts.activity, icon: Camera },
       { id: "tests", label: "Tests & Question Papers", count: counts.tests, icon: GraduationCap },
       { id: "results", label: "Performance & Outcomes", count: counts.results, icon: Award },
-      { id: "resources", label: "Feedbacks & Reviews", count: counts.resources, icon: MessageSquare },
     ];
   }, [posts]);
 
@@ -70,14 +70,14 @@ export function MadrasaPostsSection({ posts, madrasaName }: MadrasaPostsSectionP
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-700 animate-pulse" />
             <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">
-              Verified Educational Archive
+              Verified Educational Records
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Curriculum Archives &amp; Activity Posts
+            Academic Records &amp; Activities
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Browse examination papers, student results, and activities documented by faculty for {madrasaName}.
+            Browse teacher evaluations, feedbacks, question papers, and classroom activities for {madrasaName}.
           </p>
         </div>
 

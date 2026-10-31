@@ -47,6 +47,8 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
     post.title.toLowerCase().includes("daily academic monitoring");
 
   const imageFiles = post.files?.filter((f) => f.mime_type?.startsWith("image/")) || [];
+  const videoFiles = post.files?.filter((f) => f.mime_type?.startsWith("video/")) || [];
+  const pdfFiles = post.files?.filter((f) => f.mime_type === "application/pdf") || [];
   const fileCount = post.files ? post.files.length : 0;
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -95,8 +97,29 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
         </div>
       )}
 
-      {/* Visual Header / Photos Display */}
-      {imageFiles.length > 0 ? (
+      {/* Visual Header / Media Display */}
+      {videoFiles.length > 0 ? (
+        <div className="relative w-full bg-slate-950 overflow-hidden">
+          <div className="relative h-48 sm:h-52 w-full">
+            <iframe
+              src={`https://drive.google.com/file/d/${videoFiles[0].drive_file_id}/preview`}
+              className="w-full h-full border-0"
+              allow="autoplay; encrypted-media"
+              loading="lazy"
+              title={post.title}
+            />
+          </div>
+          {/* Tag on Top Left */}
+          <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10 pointer-events-none">
+            <Badge className="shadow-xs backdrop-blur-md font-bold text-[10px] bg-red-600 text-white border border-red-700 flex items-center gap-1">
+              ▶ Video Feedback
+            </Badge>
+            <Badge className="shadow-xs backdrop-blur-md font-bold text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
+              🏷️ {post.title.includes(":") ? post.title.split(":")[0] : "Feedback"}
+            </Badge>
+          </div>
+        </div>
+      ) : imageFiles.length > 0 ? (
         <div className="relative w-full bg-slate-100 overflow-hidden">
           {imageFiles.length === 1 ? (
             <Link href={`/posts/${post.id}`} className="block h-48 sm:h-52 w-full overflow-hidden">
@@ -109,13 +132,13 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
               />
             </Link>
           ) : (
-            // 2+ Photos Side-by-Side Gallery (Ideal for Notebook + Blackboard pictures)
+            // 2+ Photos Side-by-Side Gallery
             <Link href={`/posts/${post.id}`} className="grid grid-cols-2 gap-1 h-48 sm:h-52 w-full overflow-hidden">
               <div className="relative h-full w-full bg-slate-200 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/files/${imageFiles[0].drive_file_id}/thumb`}
-                  alt="Student Notebook"
+                  alt="Record Photo"
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                   loading="lazy"
                 />
@@ -157,7 +180,7 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
             ) : (
               <>
                 <Badge className="shadow-xs backdrop-blur-md font-black text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
-                  🏷️ {post.title}
+                  🏷️ {post.title.includes(":") ? post.title.split(":")[0] : post.title}
                 </Badge>
                 <Badge className="shadow-xs backdrop-blur-md text-[10px] font-semibold bg-emerald-950/80 text-emerald-100 border border-emerald-700/60">
                   {categoryName}
@@ -166,6 +189,21 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
             )}
           </div>
         </div>
+      ) : pdfFiles.length > 0 ? (
+        <Link href={`/posts/${post.id}`} className="relative w-full bg-gradient-to-br from-emerald-900 to-slate-900 h-40 flex items-center justify-center p-6 text-white group-hover:from-emerald-800 transition-colors">
+          <div className="text-center space-y-1.5">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-white/10 flex items-center justify-center text-amber-300 border border-white/10">
+              <FileText className="w-5 h-5" />
+            </div>
+            <p className="text-xs font-bold text-amber-300">Examination Question Paper</p>
+            <p className="text-[11px] text-slate-300 truncate max-w-[200px]">{pdfFiles[0].name}</p>
+          </div>
+          <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10 pointer-events-none">
+            <Badge className="shadow-xs backdrop-blur-md font-bold text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
+              🏷️ Question Paper
+            </Badge>
+          </div>
+        </Link>
       ) : (
         <div className="p-4 sm:p-5 pb-0 flex items-center justify-between flex-wrap gap-2">
           {isDailyMonitoring ? (
@@ -176,29 +214,12 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
           ) : (
             <div className="flex items-center gap-1.5 flex-wrap">
               <Badge className="font-black text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
-                🏷️ {post.title}
+                🏷️ {post.title.includes(":") ? post.title.split(":")[0] : post.title}
               </Badge>
               <Badge className="text-[10px] font-semibold bg-emerald-100 text-emerald-950 border border-emerald-300">
                 {categoryName}
               </Badge>
             </div>
-          )}
-
-          {isApproved ? (
-            <Badge variant="success" className="gap-1 text-[11px]">
-              <CheckCircle className="w-3 h-3" />
-              <span>{t.post.status.approved}</span>
-            </Badge>
-          ) : isPending ? (
-            <Badge variant="warning" className="gap-1 text-[11px]">
-              <Clock className="w-3 h-3" />
-              <span>{t.post.status.pending}</span>
-            </Badge>
-          ) : (
-            <Badge variant="danger" className="gap-1 text-[11px]">
-              <AlertTriangle className="w-3 h-3" />
-              <span>{t.post.status.rejected}</span>
-            </Badge>
           )}
         </div>
       )}
@@ -214,13 +235,15 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
             {post.title}
           </h3>
 
-          {/* Teacher's Daily Comment / Covered Note */}
+          {/* Teacher's Daily Comment / Record Note */}
           {post.description && (
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 mb-3 text-xs text-slate-700 leading-relaxed space-y-1">
-              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
-                <MessageSquare className="w-3 h-3" />
-                <span>Today&apos;s Lesson &amp; Progress Notes:</span>
-              </div>
+              {isDailyMonitoring && (
+                <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                  <MessageSquare className="w-3 h-3" />
+                  <span>Today&apos;s Lesson &amp; Progress Notes:</span>
+                </div>
+              )}
               <p className="line-clamp-3 text-slate-700" dir="auto">
                 {post.description}
               </p>
