@@ -36,6 +36,7 @@ interface PostCardProps {
 export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
   const { t } = useTranslation();
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
+  const [isPlayingVideo, setIsPlayingVideo] = React.useState<boolean>(false);
 
   const categoryName = t.post.category[post.category] || post.category;
   const isApproved = post.approval_status === "approved";
@@ -100,15 +101,43 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
       {/* Visual Header / Media Display */}
       {videoFiles.length > 0 ? (
         <div className="relative w-full bg-slate-950 overflow-hidden">
-          <div className="relative h-48 sm:h-52 w-full">
-            <iframe
-              src={`https://drive.google.com/file/d/${videoFiles[0].drive_file_id}/preview`}
-              className="w-full h-full border-0"
-              allow="autoplay; encrypted-media"
-              loading="lazy"
-              title={post.title}
-            />
-          </div>
+          {isPlayingVideo ? (
+            <div className="relative h-48 sm:h-52 w-full">
+              <iframe
+                src={`https://drive.google.com/file/d/${videoFiles[0].drive_file_id}/preview`}
+                className="w-full h-full border-0"
+                allow="autoplay; encrypted-media"
+                title={post.title}
+              />
+            </div>
+          ) : (
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsPlayingVideo(true);
+              }}
+              className="relative h-48 sm:h-52 w-full group/video cursor-pointer overflow-hidden bg-slate-900"
+            >
+              {/* Ultra-fast pre-generated thumbnail from Google CDN */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/files/${videoFiles[0].drive_file_id}/thumb`}
+                alt={post.title}
+                className="w-full h-full object-cover group-hover/video:scale-105 transition-transform duration-300 opacity-90"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-black/35 group-hover/video:bg-black/20 transition-colors flex items-center justify-center">
+                {/* Red YouTube / video player play button */}
+                <div className="w-14 h-14 rounded-full bg-red-600/95 text-white flex items-center justify-center shadow-lg group-hover/video:scale-110 group-hover/video:bg-red-600 transition-all border border-white/20">
+                  <svg className="w-6 h-6 ml-0.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tag on Top Left */}
           <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10 pointer-events-none">
             <Badge className="shadow-xs backdrop-blur-md font-bold text-[10px] bg-red-600 text-white border border-red-700 flex items-center gap-1">
@@ -189,18 +218,20 @@ export function PostCard({ post, currentUser, onDeleted }: PostCardProps) {
             )}
           </div>
         </div>
-      ) : pdfFiles.length > 0 ? (
-        <Link href={`/posts/${post.id}`} className="relative w-full bg-gradient-to-br from-emerald-900 to-slate-900 h-40 flex items-center justify-center p-6 text-white group-hover:from-emerald-800 transition-colors">
+      ) : post.files && post.files.length > 0 ? (
+        <Link href={`/posts/${post.id}`} className="relative w-full bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 h-44 flex items-center justify-center p-6 text-white group-hover:from-emerald-900 transition-colors">
           <div className="text-center space-y-1.5">
-            <div className="w-10 h-10 mx-auto rounded-xl bg-white/10 flex items-center justify-center text-amber-300 border border-white/10">
-              <FileText className="w-5 h-5" />
+            <div className="w-11 h-11 mx-auto rounded-xl bg-white/10 flex items-center justify-center text-amber-300 border border-white/15 shadow-inner">
+              <FileText className="w-6 h-6" />
             </div>
-            <p className="text-xs font-bold text-amber-300">Examination Question Paper</p>
-            <p className="text-[11px] text-slate-300 truncate max-w-[200px]">{pdfFiles[0].name}</p>
+            <p className="text-xs font-bold text-amber-300 truncate max-w-[240px]">
+              {post.title.includes(":") ? post.title.split(":")[0] : "Academic Record"}
+            </p>
+            <p className="text-[11px] text-slate-300 truncate max-w-[220px]">{post.files[0].name}</p>
           </div>
           <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10 pointer-events-none">
             <Badge className="shadow-xs backdrop-blur-md font-bold text-[11px] bg-amber-400 text-slate-950 border border-amber-500">
-              🏷️ Question Paper
+              🏷️ {post.title.includes(":") ? post.title.split(":")[0] : post.category}
             </Badge>
           </div>
         </Link>

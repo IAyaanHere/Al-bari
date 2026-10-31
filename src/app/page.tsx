@@ -19,7 +19,7 @@ import { PostCard } from "@/components/dashboard/PostCard";
 import { Post, Madrasa } from "@/types/database";
 import { HomeTeacherPanel } from "@/components/home/HomeTeacherPanel";
 
-export const revalidate = 60; // ISR 60 seconds
+export const revalidate = 10; // ISR 10 seconds
 
 async function getLandingData() {
   const adminClient = createAdminClient();
@@ -60,7 +60,8 @@ async function getLandingData() {
     .eq("visibility", "public")
     .is("deleted_at", null)
     .order("event_date", { ascending: false })
-    .limit(6);
+    .order("created_at", { ascending: false })
+    .limit(18);
 
   // 3. Fetch Active Madrasas
   const { data: madrasas } = await adminClient
